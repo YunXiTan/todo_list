@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 void main() {
-    
-  // Entry point of the app
-  runApp(MyApp()); 
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -12,17 +11,20 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        
-      // Sets the home screen of the app
-      home: HomeScreen(), 
-      
-      // Removes debug banner
-      debugShowCheckedModeBanner: false, 
-      
-      // Sets the app theme color
-      theme: ThemeData(primarySwatch: Colors.indigo), 
+      home: HomeScreen(),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.indigo),
     );
   }
+}
+
+// Updated Task model with isDone
+class Task {
+  String title;
+  DateTime? dueDate;
+  bool isDone;
+
+  Task({required this.title, this.dueDate, this.isDone = false});
 }
 
 class HomeScreen extends StatefulWidget {
@@ -33,40 +35,58 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  
-  // List to store tasks
-  List<String> todoList = []; 
-  
-  // Controller for text input
-  final TextEditingController _controller = TextEditingController(); 
-  
-  // Index to track which task is being edited
-  int updateIndex = -1; 
+  List<Task> todoList = [];
+  final TextEditingController _controller = TextEditingController();
+  int updateIndex = -1;
+  DateTime? selectedDate;
 
-  // Function to add a new task to the list
   addList(String task) {
     setState(() {
-      todoList.add(task);
+      todoList.add(Task(title: task, dueDate: selectedDate));
       _controller.clear();
+      selectedDate = null;
     });
   }
 
-  // Function to update an existing task
   updateListItem(String task, int index) {
     setState(() {
-      todoList[index] = task;
-      
-      // Reset update index
-      updateIndex = -1; 
+      final existingTask = todoList[index];
+      todoList[index] = Task(
+        title: task,
+        dueDate: selectedDate,
+        isDone: existingTask.isDone,
+      );
+      updateIndex = -1;
       _controller.clear();
+      selectedDate = null;
     });
   }
 
-  // Function to delete a task
   deleteItem(index) {
     setState(() {
       todoList.removeAt(index);
     });
+  }
+
+  toggleDone(int index, bool? value) {
+    setState(() {
+      todoList[index].isDone = value ?? false;
+    });
+  }
+
+  pickDate(BuildContext context) async {
+    final DateTime? date = await showDatePicker(
+      context: context,
+      initialDate: selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+
+    if (date != null) {
+      setState(() {
+        selectedDate = date;
+      });
+    }
   }
 
   @override
@@ -75,15 +95,10 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(
           "Todo Application",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 25,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),
         ),
-        
-        // Centers the app bar title
-        centerTitle: true, 
-        backgroundColor: Colors.green,
+        centerTitle: true,
+        backgroundColor: const Color.fromARGB(255, 76, 92, 175),
         foregroundColor: Colors.white,
       ),
       body: Container(
@@ -93,118 +108,130 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               flex: 90,
               child: ListView.builder(
-                  
-                  // Number of tasks in the list
-                  itemCount: todoList.length, 
-                  itemBuilder: (context, index) {
-                    return Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      
-                      // Card background color
-                      color: Colors.green, 
-                      child: Container(
-                        margin: EdgeInsets.only(left: 20),
-                        alignment: Alignment.center,
-                        padding: EdgeInsets.all(10),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 80,
-                              child: Text(
-                                  
-                                // Display the task text
-                                todoList[index], 
-                                style: TextStyle(
+                itemCount: todoList.length,
+                itemBuilder: (context, index) {
+                  final task = todoList[index];
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    color: const Color.fromARGB(255, 76, 92, 175),
+                    child: Container(
+                      margin: EdgeInsets.only(left: 10),
+                      alignment: Alignment.center,
+                      padding: EdgeInsets.all(10),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: task.isDone,
+                            onChanged: (value) => toggleDone(index, value),
+                            checkColor: Colors.white,
+                            activeColor: const Color.fromARGB(255, 255, 255, 255),
+                          ),
+                          Expanded(
+                            flex: 80,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  task.title,
+                                  style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 20),
-                              ),
-                            ),
-                            
-                            // Edit button
-                            IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _controller.clear();
-                                  _controller.text = todoList[index];
-                                  updateIndex = index;
-                                });
-                              },
-                              icon: Icon(
-                                Icons.edit,
-                                size: 30,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            
-                            // Delete button
-                            IconButton(
-                              onPressed: () {
-                                deleteItem(index);
-                              },
-                              icon: Icon(
-                                Icons.delete,
-                                size: 30,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-            ),
-            Expanded(
-                flex: 10,
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 70,
-                      child: SizedBox(
-                        height: 60,
-                        child: TextFormField(
-                            
-                          // Input field controller
-                          controller: _controller, 
-                          decoration: InputDecoration(
-                            focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: Colors.green,
-                                )),
-                            filled: true,
-                            
-                            // Placeholder text
-                            labelText: 'Create Task....', 
-                            labelStyle: TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                    decoration: task.isDone
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
+                                ),
+                                SizedBox(height: 5),
+                                Text(
+                                  task.dueDate != null
+                                      ? "Due: ${DateFormat('yyyy-MM-dd').format(task.dueDate!)}"
+                                      : "No due date",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+                          IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _controller.clear();
+                                _controller.text = task.title;
+                                updateIndex = index;
+                                selectedDate = task.dueDate;
+                              });
+                            },
+                            icon: Icon(Icons.edit,
+                                size: 30, color: Colors.white),
+                          ),
+                          SizedBox(width: 10),
+                          IconButton(
+                            onPressed: () {
+                              deleteItem(index);
+                            },
+                            icon: Icon(Icons.delete,
+                                size: 30, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Expanded(
+              flex: 10,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 60,
+                    child: SizedBox(
+                      height: 60,
+                      child: TextFormField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: const Color.fromARGB(255, 76, 92, 175),
+                            ),
+                          ),
+                          filled: true,
+                          labelText: 'Create Task....',
+                          labelStyle: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
-                    SizedBox(width: 5),
-                    
-                    // Floating action button for adding/updating tasks
-                    FloatingActionButton(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      onPressed: () {
-                        updateIndex != -1
-                            ? updateListItem(_controller.text,
-                                updateIndex) // Update task if editing
-                            : addList(_controller.text); // Add new task
-                      },
-                      child: Icon(updateIndex != -1
-                          ? Icons.edit
-                          : Icons.add), // Icon changes based on action
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.calendar_today,
+                        color: const Color.fromARGB(255, 76, 92, 175)),
+                    onPressed: () => pickDate(context),
+                  ),
+                  SizedBox(width: 5),
+                  FloatingActionButton(
+                    backgroundColor: const Color.fromARGB(255, 76, 92, 175),
+                    foregroundColor: Colors.white,
+                    onPressed: () {
+                      if (_controller.text.trim().isEmpty) return;
+                      updateIndex != -1
+                          ? updateListItem(_controller.text, updateIndex)
+                          : addList(_controller.text);
+                    },
+                    child: Icon(
+                      updateIndex != -1 ? Icons.edit : Icons.add,
                     ),
-                  ],
-                )),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

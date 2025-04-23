@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
+import 'model/task_model.dart';
+import 'all_tasks_screen.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -11,20 +14,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: HomeScreen(),
+      home: const HomeScreen(),
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.indigo),
     );
   }
-}
-
-// Updated Task model with isDone
-class Task {
-  String title;
-  DateTime? dueDate;
-  bool isDone;
-
-  Task({required this.title, this.dueDate, this.isDone = false});
 }
 
 class HomeScreen extends StatefulWidget {
@@ -35,12 +29,21 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 1;
   List<Task> todoList = [];
   final TextEditingController _controller = TextEditingController();
   int updateIndex = -1;
   DateTime? selectedDate;
+  DateTime focusedDay = DateTime.now();
+  DateTime? selectedDay;
 
-  addList(String task) {
+  @override
+  void initState() {
+    super.initState();
+    selectedDay = focusedDay;
+  }
+
+  void addTask(String task) {
     setState(() {
       todoList.add(Task(title: task, dueDate: selectedDate));
       _controller.clear();
@@ -48,13 +51,13 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  updateListItem(String task, int index) {
+  void updateTask(String task, int index) {
     setState(() {
-      final existingTask = todoList[index];
+      final oldTask = todoList[index];
       todoList[index] = Task(
         title: task,
         dueDate: selectedDate,
-        isDone: existingTask.isDone,
+        isDone: oldTask.isDone,
       );
       updateIndex = -1;
       _controller.clear();
@@ -62,19 +65,19 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  deleteItem(index) {
+  void deleteTask(int index) {
     setState(() {
       todoList.removeAt(index);
     });
   }
 
-  toggleDone(int index, bool? value) {
+  void toggleDone(int index, bool? value) {
     setState(() {
       todoList[index].isDone = value ?? false;
     });
   }
 
-  pickDate(BuildContext context) async {
+  void pickDate(BuildContext context) async {
     final DateTime? date = await showDatePicker(
       context: context,
       initialDate: selectedDate ?? DateTime.now(),
@@ -89,151 +92,186 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "Todo Application",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),
+  Widget buildCalendarPage() {
+    List<Task> filteredList = todoList
+        .where((task) =>
+            task.dueDate != null &&
+            DateFormat('yyyy-MM-dd').format(task.dueDate!) ==
+                DateFormat('yyyy-MM-dd').format(selectedDay!))
+        .toList();
+
+    return Column(
+      children: [
+        TableCalendar(
+          focusedDay: focusedDay,
+          firstDay: DateTime.utc(2020, 1, 1),
+          lastDay: DateTime.utc(2030, 12, 31),
+          selectedDayPredicate: (day) => isSameDay(selectedDay, day),
+          onDaySelected: (selected, focused) {
+            setState(() {
+              selectedDay = selected;
+              focusedDay = focused;
+            });
+          },
+          calendarStyle: CalendarStyle(
+            todayDecoration: BoxDecoration(
+              color: Colors.indigo.shade300,
+              shape: BoxShape.circle,
+            ),
+            selectedDecoration: BoxDecoration(
+              color: Colors.indigo,
+              shape: BoxShape.circle,
+            ),
+            weekendTextStyle: TextStyle(color: Colors.red),
+            defaultTextStyle: TextStyle(color: Colors.black),
+          ),
+          headerStyle: HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+            titleTextStyle:
+                TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
         ),
-        centerTitle: true,
-        backgroundColor: const Color.fromARGB(255, 76, 92, 175),
-        foregroundColor: Colors.white,
-      ),
-      body: Container(
-        margin: EdgeInsets.all(10),
-        child: Column(
-          children: [
-            Expanded(
-              flex: 90,
-              child: ListView.builder(
-                itemCount: todoList.length,
-                itemBuilder: (context, index) {
-                  final task = todoList[index];
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+        Expanded(
+          child: ListView.builder(
+            itemCount: filteredList.length,
+            itemBuilder: (context, index) {
+              final task = filteredList[index];
+              return Container(
+                margin: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: Offset(0, 3),
                     ),
-                    color: const Color.fromARGB(255, 76, 92, 175),
-                    child: Container(
-                      margin: EdgeInsets.only(left: 10),
-                      alignment: Alignment.center,
-                      padding: EdgeInsets.all(10),
-                      child: Row(
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: task.isDone,
+                      onChanged: (value) =>
+                          toggleDone(todoList.indexOf(task), value),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Checkbox(
-                            value: task.isDone,
-                            onChanged: (value) => toggleDone(index, value),
-                            checkColor: Colors.white,
-                            activeColor: const Color.fromARGB(255, 255, 255, 255),
-                          ),
-                          Expanded(
-                            flex: 80,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  task.title,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                    decoration: task.isDone
-                                        ? TextDecoration.lineThrough
-                                        : TextDecoration.none,
-                                  ),
-                                ),
-                                SizedBox(height: 5),
-                                Text(
-                                  task.dueDate != null
-                                      ? "Due: ${DateFormat('yyyy-MM-dd').format(task.dueDate!)}"
-                                      : "No due date",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            task.title,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              decoration: task.isDone
+                                  ? TextDecoration.lineThrough
+                                  : null,
                             ),
                           ),
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _controller.clear();
-                                _controller.text = task.title;
-                                updateIndex = index;
-                                selectedDate = task.dueDate;
-                              });
-                            },
-                            icon: Icon(Icons.edit,
-                                size: 30, color: Colors.white),
-                          ),
-                          SizedBox(width: 10),
-                          IconButton(
-                            onPressed: () {
-                              deleteItem(index);
-                            },
-                            icon: Icon(Icons.delete,
-                                size: 30, color: Colors.white),
-                          ),
+                          SizedBox(height: 5),
+                          Row(
+                            children: [
+                              Icon(Icons.access_time, size: 16, color: Colors.grey),
+                              SizedBox(width: 4),
+                              Text(
+                                task.dueDate != null
+                                    ? DateFormat('HH:mm').format(task.dueDate!)
+                                    : "--:--",
+                                style: TextStyle(color: Colors.grey[700]),
+                              )
+                            ],
+                          )
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-            Expanded(
-              flex: 10,
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 60,
-                    child: SizedBox(
-                      height: 60,
-                      child: TextFormField(
-                        controller: _controller,
-                        decoration: InputDecoration(
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: const Color.fromARGB(255, 76, 92, 175),
-                            ),
-                          ),
-                          filled: true,
-                          labelText: 'Create Task....',
-                          labelStyle: TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.indigo),
+                      onPressed: () {
+                        setState(() {
+                          _controller.text = task.title;
+                          updateIndex = todoList.indexOf(task);
+                          selectedDate = task.dueDate;
+                        });
+                      },
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.calendar_today,
-                        color: const Color.fromARGB(255, 76, 92, 175)),
-                    onPressed: () => pickDate(context),
-                  ),
-                  SizedBox(width: 5),
-                  FloatingActionButton(
-                    backgroundColor: const Color.fromARGB(255, 76, 92, 175),
-                    foregroundColor: Colors.white,
-                    onPressed: () {
-                      if (_controller.text.trim().isEmpty) return;
-                      updateIndex != -1
-                          ? updateListItem(_controller.text, updateIndex)
-                          : addList(_controller.text);
-                    },
-                    child: Icon(
-                      updateIndex != -1 ? Icons.edit : Icons.add,
+                    IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => deleteTask(todoList.indexOf(task)),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                  ],
+                ),
+              );
+            },
+          ),
         ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  decoration: InputDecoration(
+                    hintText: 'Enter task...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 8),
+              IconButton(
+                onPressed: () => pickDate(context),
+                icon: Icon(Icons.calendar_today, color: Colors.indigo),
+              ),
+              SizedBox(width: 8),
+              FloatingActionButton(
+                mini: true,
+                onPressed: () {
+                  if (_controller.text.trim().isEmpty) return;
+                  updateIndex != -1
+                      ? updateTask(_controller.text, updateIndex)
+                      : addTask(_controller.text);
+                },
+                backgroundColor: Colors.indigo,
+                child: Icon(updateIndex != -1 ? Icons.edit : Icons.add),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      AllTasksScreen(
+        tasks: todoList,
+        onToggleDone: toggleDone,
+      ),
+      buildCalendarPage(),
+      //Center(child: Text("Profile Screen Coming Soon")),
+    ];
+
+    return Scaffold(
+      body: pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: "Tasks"),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: "Calendar"),
+          //BottomNavigationBarItem(icon: Icon(Icons.person), label: "Mine"),
+        ],
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
       ),
     );
   }

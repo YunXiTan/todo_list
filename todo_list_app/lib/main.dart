@@ -59,30 +59,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void showAddTaskModal(BuildContext context) {
-    final TextEditingController taskController = TextEditingController();
-    DateTime? pickedDate = DateTime.now();
+  final TextEditingController taskController = TextEditingController();
+  DateTime? pickedDate = DateTime.now();
+  TimeOfDay? pickedTime = TimeOfDay.now();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            top: 20,
-            left: 20,
-            right: 20,
-          ),
-          child: StatefulBuilder(builder: (context, setState) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (BuildContext ctx) {
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          top: 20,
+          left: 20,
+          right: 20,
+        ),
+        child: StatefulBuilder(
+          builder: (context, setState) {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text("Add New Task",
-                    style: TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(
+                  "Add New Task",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
                 SizedBox(height: 16),
                 TextField(
                   controller: taskController,
@@ -102,11 +105,35 @@ class _HomeScreenState extends State<HomeScreen> {
                     setState(() => pickedDate = date);
                   },
                 ),
+                SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: pickedTime ?? TimeOfDay.now(),
+                    );
+                    if (time != null) {
+                      setState(() => pickedTime = time);
+                    }
+                  },
+                  child: Text(
+                    pickedTime != null
+                        ? "Due Time: ${pickedTime!.format(context)}"
+                        : "Select Time",
+                  ),
+                ),
                 SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () {
                     if (taskController.text.trim().isNotEmpty) {
-                      addTask(taskController.text.trim(), pickedDate);
+                      final fullDateTime = DateTime(
+                        pickedDate!.year,
+                        pickedDate!.month,
+                        pickedDate!.day,
+                        pickedTime?.hour ?? 0,
+                        pickedTime?.minute ?? 0,
+                      );
+                      addTask(taskController.text.trim(), fullDateTime);
                       Navigator.pop(ctx);
                     }
                   },
@@ -116,59 +143,184 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text("Add Task"),
+                  child: Text(
+                    "Add Task",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
                 SizedBox(height: 20),
               ],
             );
-          }),
-        );
-      },
-    );
-  }
+          },
+        ),
+      );
+    },
+  );
+}
+
+void showEditTaskModal(BuildContext context, int index) {
+  final task = todoList[index];
+  final TextEditingController taskController = TextEditingController(text: task.title);
+  DateTime? pickedDate = task.dueDate ?? DateTime.now();
+  TimeOfDay? pickedTime = TimeOfDay.fromDateTime(task.dueDate ?? DateTime.now());
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (BuildContext ctx) {
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          top: 20,
+          left: 20,
+          right: 20,
+        ),
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Edit Task",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: taskController,
+                  decoration: InputDecoration(
+                    labelText: "Task Name",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                CalendarDatePicker(
+                  initialDate: pickedDate!,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                  onDateChanged: (date) {
+                    setState(() => pickedDate = date);
+                  },
+                ),
+                SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: pickedTime ?? TimeOfDay.now(),
+                    );
+                    if (time != null) {
+                      setState(() => pickedTime = time);
+                    }
+                  },
+                  child: Text(
+                    pickedTime != null
+                        ? "Due Time: ${pickedTime!.format(context)}"
+                        : "Select Time",
+                  ),
+                ),
+                SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    if (taskController.text.trim().isNotEmpty) {
+                      final updatedDateTime = DateTime(
+                        pickedDate!.year,
+                        pickedDate!.month,
+                        pickedDate!.day,
+                        pickedTime?.hour ?? 0,
+                        pickedTime?.minute ?? 0,
+                      );
+                      setState(() {
+                        todoList[index] = Task(
+                          title: taskController.text.trim(),
+                          dueDate: updatedDateTime,
+                          isDone: task.isDone,
+                        );
+                      });
+                      Navigator.pop(ctx);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text("Save Changes", style: TextStyle(color: Colors.white)),
+                ),
+                SizedBox(height: 20),
+              ],
+            );
+          },
+        ),
+      );
+    },
+  );
+}
 
   Widget buildCalendarPage() {
-    List<Task> filteredList = todoList
-        .where((task) =>
+  List<Task> filteredList = todoList
+      .where(
+        (task) =>
             task.dueDate != null &&
             DateFormat('yyyy-MM-dd').format(task.dueDate!) ==
-                DateFormat('yyyy-MM-dd').format(selectedDay!))
-        .toList();
-
-    return Stack(
-      children: [
-        Column(
-          children: [
-            TableCalendar(
-              focusedDay: focusedDay,
-              firstDay: DateTime.utc(2020, 1, 1),
-              lastDay: DateTime.utc(2030, 12, 31),
-              selectedDayPredicate: (day) => isSameDay(selectedDay, day),
-              onDaySelected: (selected, focused) {
-                setState(() {
-                  selectedDay = selected;
-                  focusedDay = focused;
-                });
-              },
-              calendarStyle: CalendarStyle(
-                todayDecoration: BoxDecoration(
-                  color: Colors.indigo.shade300,
-                  shape: BoxShape.circle,
+                DateFormat('yyyy-MM-dd').format(selectedDay!),
+      )
+      .toList();
+      return Stack(
+        children: [
+          Column(
+            children: [
+              TableCalendar(
+                focusedDay: focusedDay,
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
+                selectedDayPredicate: (day) => isSameDay(selectedDay, day),
+                onDaySelected: (selected, focused) {
+                  setState(() {
+                    selectedDay = selected;
+                    focusedDay = focused;
+                  });
+                },
+                eventLoader: (day) {
+                  return todoList
+                      .where((task) =>
+                          task.dueDate != null &&
+                          DateFormat('yyyy-MM-dd').format(task.dueDate!) ==
+                              DateFormat('yyyy-MM-dd').format(day))
+                      .toList();
+                },
+                calendarStyle: CalendarStyle(
+                  todayDecoration: BoxDecoration(
+                    color: Colors.indigo.shade300,
+                    shape: BoxShape.circle,
+                  ),
+                  selectedDecoration: BoxDecoration(
+                    color: Colors.indigo,
+                    shape: BoxShape.circle,
+                  ),
+                  weekendTextStyle: TextStyle(color: Colors.red),
+                  defaultTextStyle: TextStyle(color: Colors.black),
+                  markersAlignment: Alignment.bottomCenter,
+                  markerDecoration: BoxDecoration(
+                    color: Colors.blueAccent,
+                    shape: BoxShape.circle,
+                  ),
+                  markersMaxCount: 1,
                 ),
-                selectedDecoration: BoxDecoration(
-                  color: Colors.indigo,
-                  shape: BoxShape.circle,
+                headerStyle: HeaderStyle(
+                  formatButtonVisible: false,
+                  titleCentered: true,
+                  titleTextStyle: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                weekendTextStyle: TextStyle(color: Colors.red),
-                defaultTextStyle: TextStyle(color: Colors.black),
               ),
-              headerStyle: HeaderStyle(
-                formatButtonVisible: false,
-                titleCentered: true,
-                titleTextStyle:
-                    TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
             Expanded(
               child: ListView.builder(
                 itemCount: filteredList.length,
@@ -192,20 +344,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Checkbox(
                           value: task.isDone,
-                          onChanged: (value) =>
-                              toggleDone(todoList.indexOf(task), value),
+                          onChanged:
+                              (value) =>
+                                  toggleDone(todoList.indexOf(task), value),
                         ),
                         Expanded(
-                          child: Text(
-                            task.title,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                              decoration: task.isDone
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                task.title,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w500,
+                                  decoration: task.isDone ? TextDecoration.lineThrough : null,
+                                ),
+                              ),
+                              if (task.dueDate != null)
+                                Text(
+                                  "Due: ${DateFormat('hh:mm a').format(task.dueDate!)}",
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                ),
+                            ],
                           ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.edit, color: const Color.fromARGB(255, 42, 32, 181)),
+                          onPressed: () => showEditTaskModal(context, todoList.indexOf(task)),
                         ),
                         IconButton(
                           icon: Icon(Icons.delete, color: Colors.red),
@@ -225,9 +390,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: FloatingActionButton(
             backgroundColor: Colors.indigo,
             onPressed: () => showAddTaskModal(context),
-            child: Icon(Icons.add),
+            child: Icon(Icons.add, color: Colors.white),
           ),
-        )
+        ),
       ],
     );
   }
@@ -235,10 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      AllTasksScreen(
-        tasks: todoList,
-        onToggleDone: toggleDone,
-      ),
+      AllTasksScreen(tasks: todoList, onToggleDone: toggleDone),
       buildCalendarPage(),
     ];
 
@@ -249,7 +411,9 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.list), label: "Tasks"),
           BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month), label: "Calendar"),
+            icon: Icon(Icons.calendar_month),
+            label: "Calendar",
+          ),
         ],
         onTap: (index) {
           setState(() {
